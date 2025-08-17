@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  # 字幕生成のみ
+  generate-subtitles:
+    build:
+      context: .
+    command: python video_to_text_with_custom_styles.py --format srt
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # # 字幕合成のみ
+  apply-subtitles:
+    build:
+      context: .
+    command: python apply_subtitles.py
+    volumes:
+      - ./videos:/input_videos
+      - ./output:/input_subtitles  
+      - ./merged_videos:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  generate-subtitles-with-marker:
+    build:
+      context: .
+    volumes:
+      - ./videos:/input_videos
+      - ./output:/output
+      - ./marker_output:/marker_output
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+
+  apply-subtitles-with-marker:
+    build:
+      context: .
+    volumes:
+      - ./videos:/input_videos
+      - ./marker_output:/input_subtitles
+      - ./merged_videos:/output
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+
+  # 全自動パイプライン（デフォルトスタイル）
+  full-pipeline:
+    build:
+      context: .
+    command: python full_pipeline.py
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+      - ./merged_videos:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # YouTube風全自動パイプライン
+  full-pipeline-youtube:
+    build:
+      context: .
+    command: >
+      python full_pipeline.py
+      --font "Arial Black"
+      --size 36
+      --color yellow
+      --outline-width 4
+      --bold
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+      - ./videos:/input_videos
+      - ./output:/input_subtitles
+      - ./merged_videos:/output
+
+  # ゲーム実況風全自動パイプライン
+  full-pipeline-gaming:
+    build:
+      context: .
+    command: >
+      python full_pipeline.py
+      --font "Arial Black"
+      --size 30
+      --color lime
+      --bold
+      --position bottom_left
+      --outline-width 3
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+      - ./videos:/input_videos
+      - ./output:/input_subtitles
+      - ./merged_videos:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+  # 映画風全自動パイプライン
+  full-pipeline-cinema:
+    build:
+      context: .
+    command: >
+      python full_pipeline.py
+      --font "Times New Roman"
+      --size 28
+      --color white
+      --italic
+      --outline-width 1
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+      - ./videos:/input_videos
+      - ./output:/input_subtitles
+      - ./merged_videos:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+  # 基本字幕生成
+  generate-basic:
+    build:
+      context: .
+    command: python video_to_text_with_custom_styles.py
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # YouTube風字幕生成
+  generate-youtube:
+    build:
+      context: .
+    command: 
+      - python
+      - video_to_text_with_custom_styles.py
+      - --font
+      - Arial Black
+      - --size
+      - "36"
+      - --color
+      - yellow
+      - --outline-width
+      - "4"
+      - --bold
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # ゲーム実況風字幕生成
+  generate-gaming:
+    build:
+      context: .
+    command: 
+      - python
+      - video_to_text_with_custom_styles.py
+      - --font
+      - Arial Black
+      - --size
+      - "30"
+      - --color
+      - lime
+      - --bold
+      - --position
+      - bottom_left
+      - --outline-width
+      - "3"
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # 映画風字幕生成
+  generate-cinema:
+    build:
+      context: .
+    command: 
+      - python
+      - video_to_text_with_custom_styles.py
+      - --font
+      - Times New Roman
+      - --size
+      - "28"
+      - --color
+      - white
+      - --italic
+      - --outline-width
+      - "1"
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # ニュース風字幕生成
+  generate-news:
+    build:
+      context: .
+    command: 
+      - python
+      - video_to_text_with_custom_styles.py
+      - --font
+      - Arial
+      - --size
+      - "22"
+      - --color
+      - white
+      - --background
+      - --margin
+      - "20"
+    volumes:
+      - ./videos:/input
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
