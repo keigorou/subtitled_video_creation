@@ -13,7 +13,15 @@ RUN pip install --no-cache-dir \
     openai-whisper \
     torch \
     torchaudio \
-    chardet
+    chardet \
+    jaconv \
+    mojimoji \
+    neologdn
+# RUN pip install --no-cache-dir \
+#     openai-whisper \
+#     torch \
+#     torchaudio \
+#     chardet
 
 # 作業ディレクトリを設定
 WORKDIR /app
@@ -24,4 +32,4 @@ COPY apply_subtitles.py .
 COPY full_pipeline.py .
 
 # デフォルト実行
-CMD ["python", "full_pipeline.py"]
+# CMD ["python", "full_pipeline.py"]

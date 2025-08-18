@@ -7,7 +7,7 @@ services:
       context: .
     command: python video_to_text_with_custom_styles.py --format srt
     volumes:
-      - ./videos:/input
+      - ./videos:/input_videos
       - ./output:/output
     environment:
       - PYTHONUNBUFFERED=1
@@ -27,6 +27,7 @@ services:
   generate-subtitles-with-marker:
     build:
       context: .
+    command: python video_to_text_with_custom_styles.py
     volumes:
       - ./videos:/input_videos
       - ./output:/output
@@ -39,6 +40,7 @@ services:
   apply-subtitles-with-marker:
     build:
       context: .
+    command: python apply_subtitles.py
     volumes:
       - ./videos:/input_videos
       - ./marker_output:/input_subtitles

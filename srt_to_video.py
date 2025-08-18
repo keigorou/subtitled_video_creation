@@ -18,6 +18,9 @@ def parse_arguments():
     parser.add_argument('--outline', type=int, default=2, help='アウトライン幅')
     parser.add_argument('--position', default='bottom', help='位置 (bottom, top, center)')
     parser.add_argument('--margin', type=int, default=40, help='マージン')
+    # 新しく背景色のオプションを追加
+    parser.add_argument('--background', default='none', help='背景色 (black, white, gray, none)')
+    parser.add_argument('--background-alpha', type=float, default=0.8, help='背景の透明度 (0.0-1.0)')
     
     return parser.parse_args()
 
@@ -31,9 +34,10 @@ def color_to_hex(color_name):
         'yellow': '&H0000FFFF',  # BGR: 00FFFF (黄)
         'black': '&H00000000',   # BGR: 000000 (黒)
         'cyan': '&H00FFFF00',    # BGR: FFFF00 (シアン)
-        'magenta': '&H00FF00FF'  # BGR: FF00FF (マゼンタ)
+        'magenta': '&H00FF00FF', # BGR: FF00FF (マゼンタ)
+        'gray': '&H00808080'     # BGR: 808080 (グレー)
     }
-    return colors.get(color_name.lower(), '0xFFFFFF')
+    return colors.get(color_name.lower(), '&H00FFFFFF')
 
 def create_styled_video():
     """SRTからスタイル付き動画を作成"""
@@ -48,6 +52,9 @@ def create_styled_video():
     print(f"🖼️ アウトライン: {args.outline}")
     print(f"📍 位置: {args.position}")
     print(f"📏 マージン: {args.margin}")
+    print(f"🎯 背景: {args.background}")
+    if args.background != 'none':
+        print(f"👻 背景透明度: {args.background_alpha}")
     
     # ディレクトリ作成
     os.makedirs("merged_videos", exist_ok=True)
@@ -90,6 +97,8 @@ def create_styled_video():
             style_suffix += "_bold"
         if args.italic == 'true':
             style_suffix += "_italic"
+        if args.background != 'none':
+            style_suffix += f"_bg{args.background}"
         
         output_file = f"merged_videos/{video_name}_{style_suffix}_styled.mp4"
         
@@ -122,7 +131,7 @@ def find_matching_srt(video_name, srt_files):
     return None
 
 def merge_with_style(video_file, srt_file, output_file, args):
-    """FFmpegでスタイル付き字幕を合成"""
+    """FFmpegでスタイル付き字幕を合成（背景対応版）"""
     
     try:
         # 色を16進数に変換
@@ -139,11 +148,23 @@ def merge_with_style(video_file, srt_file, output_file, args):
         style_options = [
             f"FontSize={args.size}",
             f"PrimaryColour={color_hex}",
-            f"OutlineColour=0x000000",
+            f"OutlineColour=&H00000000",
             f"Outline={args.outline}",
             f"Alignment={alignment}",
             f"MarginV={args.margin}"
         ]
+        
+        # 背景色の設定
+        if args.background != 'none':
+            background_color = color_to_hex(args.background)
+            # 透明度を考慮（0x80 = 50%, 0xFF = 100%）
+            alpha_value = int(args.background_alpha * 255)
+            background_color_with_alpha = f"&H{alpha_value:02X}{background_color[3:]}"
+            
+            style_options.extend([
+                f"BackColour={background_color_with_alpha}",
+                "BorderStyle=4"  # 背景ボックスを有効にする
+            ])
         
         # 太字・斜体の設定
         if args.bold == 'true':
