@@ -11,6 +11,8 @@ services:
       - ./output:/output
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+
 
   # # 字幕合成のみ
   apply-subtitles:
@@ -219,3 +221,49 @@ services:
       - ./output:/output
     environment:
       - PYTHONUNBUFFERED=1
+ 
+  # 分割動画専用サービス
+  split-generate-subtitles:
+    build:
+      context: .
+    command: python video_to_text_with_custom_styles.py
+    volumes:
+      - ./split/videos:/input_videos:ro
+      - ./split/output:/output:rw
+      - .:/app:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+    deploy:
+      resources:
+        limits:
+          memory: 2.5G
+
+  split-process-markers:
+    build:
+      context: .
+    command: python process_markers.py
+    volumes:
+      - ./split/output:/input
+      - ./split/marker_output:/output
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+
+  split-apply-subtitles:
+    build:
+      context: .
+    command: python apply_subtitles.py
+    volumes:
+      - ./split/videos:/input_videos
+      - ./split/marker_output:/input_subtitles
+      - ./split/merged_videos:/output
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+    deploy:
+      resources:
+        limits:
+          memory: 1G

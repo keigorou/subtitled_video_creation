@@ -6,13 +6,14 @@ import whisper
 import jaconv
 import mojimoji
 import neologdn
+import re
 
 def parse_arguments():
     """引数解析"""
     parser = argparse.ArgumentParser(description='動画からカスタムスタイル字幕を生成（日本語最適化版）')
     
-    parser.add_argument('--input-dir', default='/input_videos')
-    parser.add_argument('--output-dir', default='/output')
+    parser.add_argument('--input-dir', default='/input_videos', help='入力動画ディレクトリ')
+    parser.add_argument('--output-dir', default='/output', help='出力ディレクトリ')
     parser.add_argument('--font', default='Noto Sans CJK JP')
     parser.add_argument('--size', type=int, default=48)
     parser.add_argument('--color', default='white')
@@ -32,6 +33,33 @@ def parse_arguments():
     
     return parser.parse_args()
 
+def is_safe_character(char):
+    """安全な文字かどうか判定（日本語対応）"""
+    # ASCII英数字、ハイフン、アンダースコア
+    if char.isalnum() or char in ('-', '_'):
+        return True
+    
+    # 日本語文字範囲
+    char_code = ord(char)
+    
+    # ひらがな (U+3040-U+309F)
+    if 0x3040 <= char_code <= 0x309F:
+        return True
+    
+    # カタカナ (U+30A0-U+30FF)
+    if 0x30A0 <= char_code <= 0x30FF:
+        return True
+    
+    # 漢字 (U+4E00-U+9FAF)
+    if 0x4E00 <= char_code <= 0x9FAF:
+        return True
+    
+    # 全角英数字 (U+FF00-U+FFEF)
+    if 0xFF00 <= char_code <= 0xFFEF:
+        return True
+    
+    return False
+
 def normalize_japanese_text(text, enable_normalize=True):
     """日本語テキストの正規化処理"""
     if not enable_normalize:
@@ -48,7 +76,6 @@ def normalize_japanese_text(text, enable_normalize=True):
         text = text.strip()
         
         # 4. 連続する空白を単一の空白に
-        import re
         text = re.sub(r'\s+', ' ', text)
         
         return text
@@ -61,7 +88,7 @@ def main():
     
     args = parse_arguments()
     
-    print("🎬 字幕生成（日本語最適化版）")
+    print("�� 字幕生成（日本語最適化版）")
     print(f"📁 入力: {args.input_dir}")
     print(f"📁 出力: {args.output_dir}")
     print(f"📄 形式: {args.format}")
@@ -70,7 +97,7 @@ def main():
     
     # プレビューモード
     if args.preview:
-        print("\n🔍 プレビューモード - 設定確認のみ")
+        print("\n📝 プレビューモード - 設定確認のみ")
         print("=" * 40)
         print(f"フォント: {args.font}")
         print(f"サイズ: {args.size}")
@@ -82,7 +109,13 @@ def main():
         print(f"マージン: {args.margin}px")
         return
     
+    # 出力ディレクトリを作成
     os.makedirs(args.output_dir, exist_ok=True)
+    
+    # 入力ディレクトリの存在確認
+    if not os.path.exists(args.input_dir):
+        print(f"❌ 入力ディレクトリが見つかりません: {args.input_dir}")
+        return
     
     # Whisperモデル読み込み
     print(f"\n🤖 Whisperモデル読み込み中... ({args.model})")
@@ -93,17 +126,14 @@ def main():
         print(f"✅ モデル読み込み完了: {args.model}")
     except Exception as e:
         print(f"❌ モデル読み込みエラー: {e}")
-        print("🔄 baseモデルにフォールバック")
+        print("📄 baseモデルにフォールバック")
         model = whisper.load_model("base")
     
     # 動画ファイル検索
     video_extensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.m4v']
     video_files = []
     
-    if not os.path.exists(args.input_dir):
-        print(f"❌ 入力ディレクトリが見つかりません: {args.input_dir}")
-        return
-    
+    print(f"\n📁 動画ファイル検索中: {args.input_dir}")
     for item in os.listdir(args.input_dir):
         if any(item.lower().endswith(ext) for ext in video_extensions):
             video_files.append(item)
@@ -111,7 +141,12 @@ def main():
     
     if not video_files:
         print("❌ 動画ファイルが見つかりません")
+        print(f"📁 確認されたディレクトリ内容:")
+        for item in os.listdir(args.input_dir):
+            print(f"  - {item}")
         return
+    
+    print(f"\n📊 処理対象: {len(video_files)}個の動画ファイル")
     
     # 各動画ファイルを処理
     total_processed = 0
@@ -119,8 +154,10 @@ def main():
         video_path = os.path.join(args.input_dir, filename)
         base_name = os.path.splitext(filename)[0]
         
-        # ファイル名の安全化
-        safe_base_name = "".join(c for c in base_name if c.isalnum() or c in ('-', '_'))[:50]
+        # ファイル名の安全化（修正版）
+        safe_base_name = "".join(c for c in base_name if is_safe_character(c))[:50]
+        if not safe_base_name:  # 全て除外された場合のフォールバック
+            safe_base_name = f"video_{hash(base_name) % 10000:04d}"
         
         print(f"\n🎬 処理中: {filename}")
         print(f"  📝 安全なベース名: {safe_base_name}")
@@ -224,6 +261,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             traceback.print_exc()
     
     print(f"\n🎉 処理完了: {total_processed}/{len(video_files)} ファイル")
+    
+    # 最終結果確認
+    print(f"\n📁 生成されたファイル一覧:")
+    for item in os.listdir(args.output_dir):
+        item_path = os.path.join(args.output_dir, item)
+        size = os.path.getsize(item_path)
+        print(f"  📄 {item} ({size} bytes)")
 
 def seconds_to_srt_time(seconds):
     """秒をSRT時間形式に変換"""

@@ -55,7 +55,7 @@ def position_to_alignment(position):
     return positions.get(position.lower(), 2)
 
 def parse_marker(marker_text):
-    """マーカーテキストを解析してスタイル情報を抽出"""
+    """マーカーテキストを解析してスタイル情報を抽出（数値サイズ対応版）"""
     
     # デフォルト値
     style = {
@@ -68,33 +68,57 @@ def parse_marker(marker_text):
     # マーカーを小文字で処理
     marker_lower = marker_text.lower()
     
-    # サイズの処理
-    if 'large' in marker_lower:
-        style['fontsize'] = 36
-    elif 'small' in marker_lower:
-        style['fontsize'] = 18
+    print(f"    🔍 マーカー解析: '{marker_text}' -> '{marker_lower}'")
     
-    # 色の処理
+    # サイズの処理（数値指定を優先）
+    # size数値パターン（例：size48, size32）
+    size_match = re.search(r'size(\d+)', marker_lower)
+    if size_match:
+        style['fontsize'] = int(size_match.group(1))
+        print(f"      📏 数値サイズ指定: {style['fontsize']}")
+    else:
+        # 従来のlarge/smallパターン
+        if 'large' in marker_lower:
+            style['fontsize'] = 36
+            print(f"      📏 large -> 36")
+        elif 'small' in marker_lower:
+            style['fontsize'] = 18
+            print(f"      📏 small -> 18")
+    
+    # 色の処理（従来通り）
     if 'red' in marker_lower:
-        style['color'] = '&H000000FF'
+        style['color'] = 'red'
+        print(f"      🎨 色: red")
     elif 'blue' in marker_lower:
-        style['color'] = '&H00FF0000'
+        style['color'] = 'blue'
+        print(f"      🎨 色: blue")
     elif 'green' in marker_lower:
-        style['color'] = '&H0000FF00'
+        style['color'] = 'green'
+        print(f"      🎨 色: green")
     elif 'yellow' in marker_lower:
-        style['color'] = '&H0000FFFF'
+        style['color'] = 'yellow'
+        print(f"      🎨 色: yellow")
+    elif 'white' in marker_lower:
+        style['color'] = 'white'
+        print(f"      🎨 色: white")
+    elif 'black' in marker_lower:
+        style['color'] = 'black'
+        print(f"      🎨 色: black")
     
-    # スタイルの処理
+    # スタイルの処理（従来通り）
     if 'bold' in marker_lower:
         style['bold'] = 1
+        print(f"      💪 太字")
     
     if 'italic' in marker_lower:
         style['italic'] = 1
+        print(f"      📐 斜体")
     
+    print(f"      ✅ 解析結果: {style}")
     return style
 
-def process_srt_with_markers(srt_content):
-    """SRTファイルのマーカーを処理"""
+def process_srt_with_markers(srt_content, default_style_args):
+    """SRTファイルのマーカーを処理（デバッグ強化版）"""
     
     # マーカーパターン: ¥¥¥marker¥¥¥text¥¥¥
     marker_pattern = r'¥¥¥([^¥]+)¥¥¥([^¥]*)¥¥¥'
@@ -103,6 +127,9 @@ def process_srt_with_markers(srt_content):
         marker_text = match.group(1)
         content = match.group(2)
         
+        print(f"  🎯 マーカー発見: '{marker_text}' 適用対象: '{content}'")
+        print(f"  📋 使用するデフォルト設定: size={default_style_args['size']}, color={default_style_args['color']}, bold={default_style_args['bold']}, italic={default_style_args['italic']}")
+        
         style = parse_marker(marker_text)
         
         # ASSタグに変換
@@ -110,30 +137,88 @@ def process_srt_with_markers(srt_content):
         
         if style['fontsize']:
             tags.append(f"\\fs{style['fontsize']}")
+            print(f"      📏 マーカーサイズタグ: \\fs{style['fontsize']}")
         
         if style['color']:
-            # BGRカラーをASS形式に変換
-            if style['color'] == '&H000000FF':  # 赤
+            # 色名からASSタグに変換
+            if style['color'] == 'red':
                 tags.append(r'\c&H0000FF&')
-            elif style['color'] == '&H00FF0000':  # 青
+            elif style['color'] == 'blue':
                 tags.append(r'\c&HFF0000&')
-            elif style['color'] == '&H0000FF00':  # 緑
+            elif style['color'] == 'green':
                 tags.append(r'\c&H00FF00&')
-            elif style['color'] == '&H0000FFFF':  # 黄色
+            elif style['color'] == 'yellow':
                 tags.append(r'\c&H00FFFF&')
+            elif style['color'] == 'white':
+                tags.append(r'\c&HFFFFFF&')
+            elif style['color'] == 'black':
+                tags.append(r'\c&H000000&')
+            print(f"      🎨 マーカー色タグ: 最後に追加されたタグ")
         
         if style['bold']:
             tags.append(r'\b1')
+            print(f"      💪 マーカー太字タグ: \\b1")
         
         if style['italic']:
             tags.append(r'\i1')
+            print(f"      📐 マーカー斜体タグ: \\i1")
         
         # タグを組み合わせ
         if tags:
             start_tag = '{' + ''.join(tags) + '}'
-            end_tag = r'{\r}' if tags else ''
-            return f"{start_tag}{content}{end_tag}"
+            print(f"      🏁 完成したマーカータグ: '{start_tag}'")
+            
+            # 明示的にDefaultスタイルに戻すタグを作成
+            default_reset_tags = []
+            
+            # デフォルトのフォントサイズに戻す
+            default_reset_tags.append(f"\\fs{default_style_args['size']}")
+            print(f"      📏 リセットサイズタグ: \\fs{default_style_args['size']}")
+            
+            # デフォルトの色に戻す
+            default_color = default_style_args['color'].lower()
+            if default_color == 'red':
+                default_reset_tags.append(r'\c&H0000FF&')
+            elif default_color == 'blue':
+                default_reset_tags.append(r'\c&HFF0000&')
+            elif default_color == 'green':
+                default_reset_tags.append(r'\c&H00FF00&')
+            elif default_color == 'yellow':
+                default_reset_tags.append(r'\c&H00FFFF&')
+            elif default_color == 'white':
+                default_reset_tags.append(r'\c&HFFFFFF&')
+            elif default_color == 'black':
+                default_reset_tags.append(r'\c&H000000&')
+            else:
+                default_reset_tags.append(r'\c&HFFFFFF&')  # フォールバック
+            print(f"      🎨 リセット色タグ: 追加完了 ({default_color})")
+            
+            # デフォルトの太字・斜体設定に戻す
+            if default_style_args.get('bold', False):
+                default_reset_tags.append(r'\b1')
+                print(f"      💪 リセット太字タグ: \\b1 (太字を維持)")
+            else:
+                default_reset_tags.append(r'\b0')
+                print(f"      💪 リセット太字タグ: \\b0 (太字を解除)")
+                
+            if default_style_args.get('italic', False):
+                default_reset_tags.append(r'\i1')
+                print(f"      📐 リセット斜体タグ: \\i1 (斜体を維持)")
+            else:
+                default_reset_tags.append(r'\i0')
+                print(f"      📐 リセット斜体タグ: \\i0 (斜体を解除)")
+            
+            reset_tag = '{' + ''.join(default_reset_tags) + '}'
+            
+            result = f"{start_tag}{content}{reset_tag}"
+            print(f"    ✨ 最終変換結果: '{result}'")
+            print(f"    🔄 完成したリセットタグ: '{reset_tag}'")
+            print(f"    📊 期待される動作:")
+            print(f"       マーカー部分「{content}」のサイズ: {style.get('fontsize', 'デフォルト')}")
+            print(f"       リセット後のサイズ: {default_style_args['size']}")
+            return result
         else:
+            print(f"    ⚠️ スタイルが適用されませんでした")
             return content
     
     # マーカーを置換
@@ -150,15 +235,15 @@ def srt_to_ass_with_style(srt_content, video_name, args):
     bold_value = 1 if args.bold else 0
     italic_value = 1 if args.italic else 0
     
-    print(f"🎨 適用するスタイル:")
-    print(f"  �� サイズ: {args.size}")
+    print(f"🎨 適用するデフォルトスタイル:")
+    print(f"  📏 サイズ: {args.size}")
     print(f"  🎨 色: {args.color} -> {primary_color}")
     print(f"  💪 太字: {bold_value}")
     print(f"  📐 斜体: {italic_value}")
     print(f"  🖼️ アウトライン: {args.outline}")
     print(f"  📍 位置: {args.position} -> {alignment}")
     print(f"  📏 マージン: {args.margin}")
-    print(f"  �� フォント: {args.font}")
+    print(f"  🔤 フォント: {args.font}")
     print(f"  🎯 背景: {args.background}")
     if args.background != 'none':
         print(f"  👻 背景透明度: {args.background_alpha}")
@@ -215,7 +300,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 event = f"Dialogue: 0,{start_ass},{end_ass},Default,,0,0,0,,{text}"
                 events.append(event)
     
-    return ass_header + '\n'.join(events)
+    final_ass = ass_header + '\n'.join(events)
+    
+    return final_ass
 
 def srt_time_to_ass_time(srt_time):
     """SRT時間形式をASS時間形式に変換"""
@@ -264,8 +351,18 @@ def process_markers_in_directory(args):
                 
                 print(f"  🎨 マーカーを発見 - 処理中...")
                 
+                # デフォルトスタイルの情報を渡す
+                default_style = {
+                    'size': args.size,
+                    'color': args.color,
+                    'bold': args.bold,
+                    'italic': args.italic
+                }
+                
+                print(f"  🔄 デフォルトスタイル設定: {default_style}")
+                
                 # マーカーを処理
-                processed_content = process_srt_with_markers(content)
+                processed_content = process_srt_with_markers(content, default_style)
                 
                 # スタイル適用済みASSに変換
                 base_name = os.path.splitext(filename)[0]
